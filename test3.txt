@@ -1,0 +1,1 @@
+This is Test upload to MinIO

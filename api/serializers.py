@@ -23,24 +23,45 @@ class PortalUserSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 class CourseSerializer(serializers.ModelSerializer):
-    instructor = PortalUserSerializer(read_only=True)
-    instructor_id = serializers.PrimaryKeyRelatedField(
-        queryset=PortalUser.objects.all(), source="instructor", write_only=True
-    )
-
     class Meta:
         model = Course
-        fields = ["id", "title", "description", "instructor", "instructor_id", "created_at"]
-
+        fields = [
+            "course_id",
+            "title",
+            "description",
+            "created_by",
+            "created_at",            
+            "instructor",      # will be user_id
+            "category",
+            "level",
+        ]
 
 class VideoSerializer(serializers.ModelSerializer):
+    course_id = serializers.IntegerField(source='course.course_id', read_only=True)
     file = serializers.FileField(write_only=True)  # for uploads
 
     class Meta:
         model = Video
         fields = "__all__"
         read_only_fields = ["video_id", "file_path", "uploaded_by", "uploaded_at"]
-        
+    
+    def get_play_url(self, obj):
+        if not obj.file_url:
+            return None
+
+        client = get_minio_client()
+        bucket = settings.MINIO_BUCKET_NAME
+        try:
+            return client.get_presigned_url(
+                method="GET",
+                bucket_name=bucket,
+                object_name=obj.file_url,
+                expires=timedelta(hours=1),
+            )
+        except Exception:
+            return None
+    
+      
     def validate_difficulty_level(self, value):
         if value is None:
             return value

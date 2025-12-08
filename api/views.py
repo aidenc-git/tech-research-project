@@ -13,7 +13,10 @@ from rest_framework.response import Response
 
 from .models import *
 from .serializers import *
-from .minio_client import get_minio
+from .minio_client import get_minio_client
+from django.conf import settings
+from minio.error import S3Error
+
 
 def _safe_name(name: str) -> str:
     # normalize unicode + strip weird chars
@@ -61,60 +64,35 @@ class SearchLogViewSet(viewsets.ModelViewSet):
     serializer_class = SearchLogSerializer
     
 class VideoViewSet(viewsets.ModelViewSet):
-    queryset = Video.objects.select_related("course", "uploaded_by").all().order_by("-uploaded_at")
+    queryset = Video.objects.select_related("course", "uploaded_by").all()
     serializer_class = VideoSerializer
-    permission_classes = [permissions.AllowAny]  # change to IsAuthenticated for real auth
-    parser_classes = [MultiPartParser, FormParser]  # so multipart/form-data works
+    permission_classes = [permissions.IsAuthenticated]
 
-    @action(methods=["post"], detail=False, url_path="upload")
-    def upload(self, request, *args, **kwargs):
+    @action(detail=True, methods=["get"], url_path="play")
+    def play(self, request, pk=None):
         """
-        POST /api/videos/upload/
-        form-data:
-          - file: <video file>
-          - title: string
-          - course: <course_id>  (foreign key id)
-          - uploaded_by: <user_id>  (foreign key id)
-          - description: string (optional)
-          - difficulty_level: basic|intermediate|advanced (optional)
-          - tags: JSON string or object (optional)
-          - thumbnail_url, duration, transcript (optional)
+        Return a presigned URL for this video.
+        Response JSON **must** be: { "url": "<signed-url>" }
         """
-        ser = self.get_serializer(data=request.data)
-        ser.is_valid(raise_exception=True)
+        video = self.get_object()
 
-        file = ser.validated_data.pop("file")
-        original_name = _safe_name(file.name)
-        ext = os.path.splitext(original_name)[1] or ""
-        object_name = f"videos/{uuid4().hex}{ext}"
+        # IMPORTANT: file_url should be object path in the bucket, e.g.
+        #   "Web Development/test.mp4"
+        object_name = video.file_url  
 
-        # Ensure bucket exists (cheap check on each call; OK for dev)
-        client = get_minio()
-        bucket = settings.MINIO_BUCKET
-        if not client.bucket_exists(bucket):
-            client.make_bucket(bucket)
+        client = get_minio_client()
+        bucket = settings.MINIO_BUCKET_NAME  # e.g. "studentportalvideos"
 
-        # Upload stream to MinIO
-        # NOTE: Django InMemoryUploadedFile/TemporaryUploadedFile have .file + .size
-        client.put_object(
-            bucket,
-            object_name,
-            data=file.file,
-            length=file.size,
-            content_type=file.content_type or "application/octet-stream",
-        )
-
-        # Persist metadata in Postgres; store object path in file_url
-        video: Video = Video.objects.create(
-            **ser.validated_data,
-            file_url=object_name,
-        )
-
-        # Return a presigned URL (1 hour) for immediate playback/testing
-        presigned = client.presigned_get_object(bucket, object_name, expires=timedelta(hours=1))
-
-        out = VideoSerializer(video).data
-        out["presigned_url"] = presigned
-        out["object_url"] = f"{settings.MINIO_PUBLIC_ENDPOINT}/{bucket}/{object_name}"
-
-        return Response(out, status=status.HTTP_201_CREATED)    
+        try:
+            presigned_url = client.presigned_get_object(
+                bucket_name=bucket,
+                object_name=object_name,
+                expires=timedelta(hours=1),
+            )
+            return Response({"url": presigned_url})
+        except Exception as e:
+            # This will cause frontend to get HTTP 500
+            return Response(
+                {"detail": "Unable to get video URL", "error": str(e)},
+                status=500,
+            )

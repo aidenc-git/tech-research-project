@@ -46,12 +46,17 @@ class PortalUser(AbstractBaseUser):
     )
     profile_picture = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    
     # required by Django auth
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
 
+# 👇 this is important so things expecting `id` (like SimpleJWT) work
+    @property
+    def id(self):
+        return self.user_id
+    
     USERNAME_FIELD = "email"        # login with email
     REQUIRED_FIELDS = ["name"]      # prompted when creating superuser
 
@@ -73,12 +78,49 @@ class PortalUser(AbstractBaseUser):
         return self.email
 
 
+    def has_perm(self, perm, obj=None):
+        """
+        Does the user have a specific permission?
+        For now: superusers have all perms.
+        """
+        return self.is_superuser
+
+    def has_module_perms(self, app_label):
+        """
+        Does the user have permissions to view the app `app_label`?
+        For now: superusers can see all apps in the admin.
+        """
+        return self.is_superuser
+
 
 class Course(models.Model):
+    course_id = models.AutoField(primary_key=True, db_column='course_id')
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    instructor = models.ForeignKey(PortalUser, on_delete=models.CASCADE, related_name="courses")
+    #instructor = models.ForeignKey(PortalUser, on_delete=models.CASCADE, related_name="courses")
+    category = models.CharField(max_length=100, blank=True, null=True)
+    level = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        PortalUser,
+        db_column="created_by",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="courses_created",
+    )
+
+    
+    # NEW: instructor, mapped to courses.instructor_id
+    instructor = models.ForeignKey(
+        PortalUser,
+        db_column="instructor_id",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="courses_taught",
+    )
+
 
     class Meta:
         db_table = "courses"
@@ -89,13 +131,14 @@ class Course(models.Model):
 
    
 class Video(models.Model):
-    video_id = models.AutoField(primary_key=True)
+    video_id = models.AutoField(primary_key=True, db_column='video_id')
     course = models.ForeignKey(
-        'Course',  # assumes you have a Course model mapped to public.courses
-        on_delete=models.CASCADE,
+        Course,
+        models.CASCADE,
         db_column='course_id',
+        related_name='videos',
         null=True,
-        blank=True
+        blank=True,
     )
     uploaded_by = models.ForeignKey(
         'PortalUser',  # assumes you mapped your users table to PortalUser

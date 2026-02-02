@@ -6,10 +6,13 @@ from datetime import timedelta
 from django.conf import settings
 from django.utils.text import get_valid_filename
 
+import re
+from django.db.models import Q
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
+
 
 from .models import *
 from .serializers import *
@@ -64,7 +67,8 @@ class SearchLogViewSet(viewsets.ModelViewSet):
     serializer_class = SearchLogSerializer
     
 class VideoViewSet(viewsets.ModelViewSet):
-    queryset = Video.objects.select_related("course", "uploaded_by").all()
+    # queryset = Video.objects.select_related("course", "uploaded_by").all()
+    queryset = Video.objects.all()
     serializer_class = VideoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -96,3 +100,41 @@ class VideoViewSet(viewsets.ModelViewSet):
                 {"detail": "Unable to get video URL", "error": str(e)},
                 status=500,
             )
+
+    @action(detail=False, methods=["get"], url_path="search")
+    def search(self, request):
+        raw_q = (request.query_params.get("q") or "").strip()
+        course_id = request.query_params.get("course_id")
+        level = request.query_params.get("level")
+
+        # Normalize: remove punctuation like ? ! , . etc
+        cleaned = re.sub(r"[^\w\s]", " ", raw_q)
+        tokens = [t for t in cleaned.split() if t]
+
+        qs = Video.objects.all()
+
+        if course_id:
+            qs = qs.filter(course_id=course_id)
+
+        if level:
+            qs = qs.filter(difficulty_level=level)
+
+        if tokens:
+            # AND across tokens, OR across fields
+            token_q = Q()
+            for token in tokens:
+                token_q &= (
+                    Q(title__icontains=token) |
+                    Q(description__icontains=token) |
+                    Q(transcript__icontains=token) |
+                    Q(difficulty_level__icontains=token)
+                )
+            qs = qs.filter(token_q)
+
+        qs = qs.order_by("-uploaded_at")
+
+        serializer = self.get_serializer(qs[:50], many=True)
+        return Response(
+            {"query": raw_q, "normalized_tokens": tokens, "total": qs.count(), "results": serializer.data},
+            status=status.HTTP_200_OK
+        )

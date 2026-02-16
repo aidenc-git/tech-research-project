@@ -9,8 +9,10 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from pathlib import Path
+from decouple import config
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,13 +22,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-3#dm77@&cqjyfnhc=9y(p)$^ouylbkvov8=+*^mtc8i1p6mov5"
+#SECRET_KEY = "django-insecure-3#dm77@&cqjyfnhc=9y(p)$^ouylbkvov8=+*^mtc8i1p6mov5"
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-3#dm77@&cqjyfnhc=9y(p)$^ouylbkvov8=+*^mtc8i1p6mov5')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+#DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
-
+#ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 # Application definition
 
@@ -37,16 +41,17 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
     "core",
     "api",
+    "corsheaders",  # ADD THIS LINE at the end
 ]
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # ADD THIS LINE
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -78,25 +83,27 @@ AUTH_USER_MODEL = "api.PortalUser"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.postgresql',
+#        'NAME': 'student_portal',
+#        'USER': 'portal_user',
+#        'PASSWORD': 'StrongPassword123!',
+#        'HOST': 'localhost',
+#        'PORT': '5432',
+#    }
+#}
+# Check if DATABASE_URL exists (production), otherwise use default
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'student_portal',
-        'USER': 'portal_user',
-        'PASSWORD': 'StrongPassword123!',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        default=config(
+            'DATABASE_URL',
+            default='postgresql://portal_user:StrongPassword123!@localhost:5432/student_portal'
+        ),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
-
-# Configure MinIO settings
-MINIO_ENDPOINT = "127.0.0.1:9000"   # MinIO endpoint
-MINIO_ACCESS_KEY = "minioadmin"
-MINIO_SECRET_KEY = "minioadmin"
-MINIO_USE_SSL = False
-MINIO_BUCKET_NAME = "studentportalvideos"
-MINIO_PUBLIC_ENDPOINT = "http://127.0.0.1:9000"
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -128,7 +135,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+#STATIC_URL = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -153,7 +160,37 @@ SIMPLE_JWT = {
 
 # Allow your Vite dev origin
 CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5173",
-    "http://localhost:5173",
-]
+#CORS_ALLOWED_ORIGINS = [
+#    "http://127.0.0.1:5173",
+#    "http://localhost:5173",
+#]
+
+# Static files configuration for production
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ORIGINS', 
+    default='http://localhost:5173,http://localhost:3000'
+).split(',')
+
+CORS_ALLOW_CREDENTIALS = True
+
+# MinIO Configuration (for file storage)
+MINIO_ENDPOINT = config('MINIO_ENDPOINT', default='localhost:9000')
+MINIO_ACCESS_KEY = config('MINIO_ACCESS_KEY', default='minioadmin')
+MINIO_SECRET_KEY = config('MINIO_SECRET_KEY', default='minioadmin')
+MINIO_USE_SSL = config('MINIO_USE_SSL', default=False, cast=bool)
+MINIO_BUCKET_NAME = config('MINIO_BUCKET_NAME', default='studentportalvideos')
+MINIO_PUBLIC_ENDPOINT = config('MINIO_PUBLIC_ENDPOINT', default='http://127.0.0.1:9000')
+
+
+# Configure MinIO settings
+#MINIO_ENDPOINT = "127.0.0.1:9000"   # MinIO endpoint
+#MINIO_ACCESS_KEY = "minioadmin"
+#MINIO_SECRET_KEY = "minioadmin"
+#MINIO_USE_SSL = False
+#MINIO_BUCKET_NAME = "studentportalvideos"
+#MINIO_PUBLIC_ENDPOINT = "http://127.0.0.1:9000"

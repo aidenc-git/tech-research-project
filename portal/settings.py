@@ -102,10 +102,7 @@ AUTH_USER_MODEL = "api.PortalUser"
 # Check if DATABASE_URL exists (production), otherwise use default
 DATABASES = {
     'default': dj_database_url.config(
-        default=config(
-            'DATABASE_URL',
-            default='postgresql://portal_user:StrongPassword123!@localhost:5432/student_portal'
-        ),
+        default='postgresql://portal_user:StrongPassword123!@localhost:5432/student_portal',
         conn_max_age=600,
         conn_health_checks=True,
     )

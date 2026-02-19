@@ -121,6 +121,7 @@ class VideoViewSet(viewsets.ModelViewSet):
                 {"detail": "Unable to get video URL", "error": str(e)},
                 status=500,
             )
+
             
     @action(detail=False, methods=["get"], url_path="search")
     def search(self, request):

@@ -20,6 +20,9 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from api.views import *
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.conf import settings
+from django.conf.urls.static import static
+
 
 router = DefaultRouter()
 router.register(r'users', PortalUserViewSet)
@@ -41,3 +44,10 @@ urlpatterns = [
     # New alias URL
     path("api/auth/login/", TokenObtainPairView.as_view(), name="api_login"),
 ]
+
+# Serve media files in development and production
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # In production, we'll serve via WhiteNoise or through Django
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

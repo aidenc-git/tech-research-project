@@ -196,6 +196,15 @@ MINIO_USE_SSL = config('MINIO_USE_SSL', default=False, cast=bool)
 MINIO_BUCKET_NAME = config('MINIO_BUCKET_NAME', default='studentportalvideos')
 MINIO_PUBLIC_ENDPOINT = config('MINIO_PUBLIC_ENDPOINT', default='http://127.0.0.1:9000')
 
+# Add these settings (adjust based on what's already there)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# In production (Railway), override to use the volume
+if not config('DEBUG', default=False, cast=bool):
+    MEDIA_ROOT = '/app/media'
+    
+
 
 # Configure MinIO settings
 #MINIO_ENDPOINT = "127.0.0.1:9000"   # MinIO endpoint

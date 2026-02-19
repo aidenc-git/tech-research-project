@@ -204,7 +204,24 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 if not config('DEBUG', default=False, cast=bool):
     MEDIA_ROOT = '/app/media'
     
+# Storage Configuration for Railway
+AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
+AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='')
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
+AWS_S3_ENDPOINT_URL = config('AWS_S3_ENDPOINT_URL', default='')
+AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
 
+# Storage settings
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+AWS_DEFAULT_ACL = 'public-read'
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.t3.storageapi.dev'
+AWS_LOCATION = 'media'
+
+# Use S3 for media files only (keep static files with WhiteNoise)
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 
 # Configure MinIO settings
 #MINIO_ENDPOINT = "127.0.0.1:9000"   # MinIO endpoint

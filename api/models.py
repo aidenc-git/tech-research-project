@@ -160,7 +160,7 @@ class Video(models.Model):
         blank=True
     )
     tags = models.JSONField(null=True, blank=True)
-    embedding_vector = VectorField(dimensions=768, null=True, blank=True)
+    #embedding_vector = VectorField(dimensions=768, null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -78,22 +78,25 @@ class VideoViewSet(viewsets.ModelViewSet):
         Return a presigned URL for this video.
         Response JSON **must** be: { "url": "<signed-url>" }
         """
-        video = self.get_object()
-
+        try:
+            video = self.get_object()
+            return Response({'url': video.file_url})
+        
         # IMPORTANT: file_url should be object path in the bucket, e.g.
         #   "Web Development/test.mp4"
-        object_name = video.file_url  
+        #object_name = video.file_url  
 
-        client = get_minio_client()
-        bucket = settings.MINIO_BUCKET_NAME  # e.g. "studentportalvideos"
+        #Minio client code
+        #client = get_minio_client()
+        #bucket = settings.MINIO_BUCKET_NAME  # e.g. "studentportalvideos"
 
-        try:
-            presigned_url = client.presigned_get_object(
-                bucket_name=bucket,
-                object_name=object_name,
-                expires=timedelta(hours=1),
-            )
-            return Response({"url": presigned_url})
+        #try:
+        #    presigned_url = client.presigned_get_object(
+        #        bucket_name=bucket,
+        #        object_name=object_name,
+        #        expires=timedelta(hours=1),
+        #    )
+            #return Response({"url": presigned_url})
         except Exception as e:
             # This will cause frontend to get HTTP 500
             return Response(

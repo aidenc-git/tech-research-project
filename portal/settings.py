@@ -189,12 +189,12 @@ CORS_ALLOWED_ORIGINS = config(
 CORS_ALLOW_CREDENTIALS = True
 
 # MinIO Configuration (for file storage)
-MINIO_ENDPOINT = config('MINIO_ENDPOINT', default='localhost:9000')
-MINIO_ACCESS_KEY = config('MINIO_ACCESS_KEY', default='minioadmin')
-MINIO_SECRET_KEY = config('MINIO_SECRET_KEY', default='minioadmin')
-MINIO_USE_SSL = config('MINIO_USE_SSL', default=False, cast=bool)
-MINIO_BUCKET_NAME = config('MINIO_BUCKET_NAME', default='studentportalvideos')
-MINIO_PUBLIC_ENDPOINT = config('MINIO_PUBLIC_ENDPOINT', default='http://127.0.0.1:9000')
+#MINIO_ENDPOINT = config('MINIO_ENDPOINT', default='localhost:9000')
+#MINIO_ACCESS_KEY = config('MINIO_ACCESS_KEY', default='minioadmin')
+#MINIO_SECRET_KEY = config('MINIO_SECRET_KEY', default='minioadmin')
+#MINIO_USE_SSL = config('MINIO_USE_SSL', default=False, cast=bool)
+#MINIO_BUCKET_NAME = config('MINIO_BUCKET_NAME', default='studentportalvideos')
+#MINIO_PUBLIC_ENDPOINT = config('MINIO_PUBLIC_ENDPOINT', default='http://127.0.0.1:9000')
 
 # Add these settings (adjust based on what's already there)
 MEDIA_URL = '/media/'

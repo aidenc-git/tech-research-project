@@ -16,9 +16,9 @@ from rest_framework.response import Response
 
 from .models import *
 from .serializers import *
-from .minio_client import get_minio_client
+#from .minio_client import get_minio_client
 from django.conf import settings
-from minio.error import S3Error
+#from minio.error import S3Error
 
 
 def _safe_name(name: str) -> str:

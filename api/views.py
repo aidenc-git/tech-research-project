@@ -13,6 +13,10 @@ from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 
+import boto3
+from botocore.config import Config
+from rest_framework.permissions import IsAuthenticated
+
 
 from .models import *
 from .serializers import *
@@ -72,38 +76,52 @@ class VideoViewSet(viewsets.ModelViewSet):
     serializer_class = VideoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    @action(detail=True, methods=["get"], url_path="play")
+    @action(detail=True, methods=["get"], url_path="play", permission_classes=[IsAuthenticated])
     def play(self, request, pk=None):
         """
-        Return a presigned URL for this video.
-        Response JSON **must** be: { "url": "<signed-url>" }
+        Return a presigned URL for this video that expires in 1 hour.
         """
         try:
             video = self.get_object()
-            return Response({'url': video.file_url})
-        
-        # IMPORTANT: file_url should be object path in the bucket, e.g.
-        #   "Web Development/test.mp4"
-        #object_name = video.file_url  
-
-        #Minio client code
-        #client = get_minio_client()
-        #bucket = settings.MINIO_BUCKET_NAME  # e.g. "studentportalvideos"
-
-        #try:
-        #    presigned_url = client.presigned_get_object(
-        #        bucket_name=bucket,
-        #        object_name=object_name,
-        #        expires=timedelta(hours=1),
-        #    )
-            #return Response({"url": presigned_url})
+            
+            # Extract the key from file_url
+            # Example: https://bucket.t3.storageapi.dev/media/videos/Programming/video.mp4
+            # We need: media/videos/Programming/video.mp4
+            url_parts = video.file_url.split('.dev/')
+            if len(url_parts) > 1:
+                file_key = url_parts[-1]
+            else:
+                # Fallback: assume file_url is just the key
+                file_key = video.file_url
+            
+            # Create S3 client
+            s3_client = boto3.client(
+                's3',
+                endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                config=Config(signature_version='s3v4'),
+                region_name=settings.AWS_S3_REGION_NAME
+            )
+            
+            # Generate presigned URL (expires in 1 hour)
+            presigned_url = s3_client.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                    'Key': file_key
+                },
+                ExpiresIn=3600  # 1 hour
+            )
+            
+            return Response({'url': presigned_url})
+            
         except Exception as e:
-            # This will cause frontend to get HTTP 500
             return Response(
                 {"detail": "Unable to get video URL", "error": str(e)},
                 status=500,
             )
-
+            
     @action(detail=False, methods=["get"], url_path="search")
     def search(self, request):
         raw_q = (request.query_params.get("q") or "").strip()
